@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.springframework.org/schema/mvc">
+
+<head>
+    <link type="text/javascript" href="resources/graph.js"/>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        .layer1 {
+            position: fixed; /* Относительное позиционирование */
+            background: #f0f0f0; /* Цвет фона */
+            height: 250px;
+            bottom: 15px;
+            left: 15px;
+
+        }
+        .layer2 {
+            position: absolute; /* Относительное позиционирование */
+            background: #f0f0f0; /* Цвет фона */
+            height: 300px;
+            top: 15px;
+            right: 15px;
+
+        }
+        .sidebar-close {
+            width: 12px;
+            height: 13px;
+            background: url(/static/close.png) no-repeat 0 0px;
+            cursor: pointer;
+            position: absolute;
+            right: 12px;
+            top: 7px;
+        }
+
+
+    </style>
+    <div class = "layer1" id = "person">
+        <div id = "name">Name</div>
+        <div id = "surname">Surname</div>
+        <img id = "photo" src = ""  style="max-width:500px;max-height:300px;height:100%"></img>
+    </div>
+    <div class = "layer2" id = "fixperson" style = 'visibility: hidden'>
+        <div id = "fixname">Name</div>
+        <div id = "fixsurname">Surname</div>
+        <img id = "fixphoto" src = ""  style="max-width:500px;max-height:300px;height:100%"></img>
+        <div id = "close">Закрыть</div>
+    </div>
+    <div id = "main"></div>
+    <canvas id="game" width="640" height="480">
+    </canvas>
+    <script th:inline = "javascript">
+
+        var graph;
+        var rootId = [[${rootId}]]
+        var edgeForce = 8
+        var timeInterval = 0.2
+        var edges = [[${graphEdges}]];
+         var graphList = [[${graphList}]];
+        var maxForce;
+        var isMoving
+        var isPointing
+        var isFixing
+        var pointingPerson
+        var fixingPerson
+        var movingPerson
+        const main = document.getElementById("main")
+        const canvas = document.getElementById('game')
+        const ctx = canvas.getContext('2d');
+        const fp = document.getElementById('fixperson')
+        const btn = document.getElementById('close')
+        function Person(id,name,surname,gender,charge,friends,photoSRC) {
+            this.id = id;
+            this.name = name;
+            this.surname = surname;
+            this.gender = gender;
+            this.charge = charge;
+            this.friend = [];
+            this.friends = friends;
+            this.x = 0;
+            this.y = 0;
+            this.photoSRC = photoSRC
+
+        }
+
+        function onload() {
+
+
+            graph = new Map();
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            maxForce = canvas.height/20;
+            //   resizeCanvas();
+            movingPerson = new Person(0,"","","",0,[],"")
+
+
+            for (i = 0; i < graphList.length; i++)
+                graph.set(graphList[i].id,new Person(graphList[i].id,graphList[i].name,graphList[i].surname,graphList[i].gender,graphList[i].friends.length,graphList[i].friends,graphList[i].photoSRC));
+            //   alert(graphList.length)
+            //  alert(graph.size)
+            //   alert(rootId)
+            //    alert(graph.get(rootId).friends.length)
+            graph.get(rootId).x = Math.round(canvas.width/2)
+            graph.get(rootId).y = Math.round(canvas.height/2)
+            var count = 0;
+            for (var [key, value] of graph)
+                if (key != rootId) {
+                    //    alert(value.x)
+                    value.x =  Math.round(Number(graph.get(rootId).x) + 50 * Math.cos(count/(Number(graph.size) - 1) * 3.14 * 2))
+                    value.y =  Math.round(Number(graph.get(rootId).y) + 50 * Math.sin(count/(Number(graph.size) - 1) * 3.14 * 2))
+                    //  alert(50 * Math.cos(count*Number(graph.size) * 3.14))
+                    //   alert(value.x + ' ' + value.y)
+                    //  alert( graph.get(rootId).x + ' ' + graph.get(rootId).y)
+                    count++
+                }
+
+        }
+        function draw() {
+            var main = document.getElementById("main")
+            var canvas = document.getElementById('game')
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            switch (graph.get(rootId).gender){
+                case '2' : ctx.fillStyle = "DeepPink"
+                    break
+                case '1' : ctx.fillStyle = "DeepSkyBlue"
+                    break
+            }
+            ctx.fillRect(graph.get(rootId).x - 10,   graph.get(rootId).y - 10, 20, 20);
+            for (var i = 0; i < edges.length; i++) {
+                if (isFixing &&  (fixingPerson.id === graph.get(edges[i].left).id || fixingPerson.id === graph.get(edges[i].right).id))
+                    ctx.strokeStyle = 'blue'
+                else if (isPointing && (pointingPerson.id === graph.get(edges[i].left).id || pointingPerson.id === graph.get(edges[i].right).id))
+                    ctx.strokeStyle = 'red';
+                else
+                    ctx.strokeStyle = 'grey';
+                ctx.beginPath();
+                ctx.moveTo(graph.get(edges[i].left).x, graph.get(edges[i].left).y);    // Рередвигает перо в точку (30, 50)
+                ctx.lineTo(graph.get(edges[i].right).x, graph.get(edges[i].right).y);
+                ctx.stroke();
+            }
+            for (var [key, value] of graph){
+                switch (value.gender){
+                    case '2' : ctx.fillStyle = "DeepPink"
+                        break
+                    case '1' : ctx.fillStyle = "DeepSkyBlue"
+                        break
+                }
+                ctx.fillRect(value.x - 10, value.y - 10, 20, 20);
+            }
+        }
+        function calculate(){
+            var k = 1500
+            for(var [key,value] of graph) {
+                if (key != rootId && !(value.id == movingPerson.id && isMoving)){
+                    var xForce = 0
+                    var yForce = 0
+                    for (var [key2,value2] of graph){
+                        if (key2 != key){
+                            var xF = 0
+                            //  alert('key ' + key + ' key2 ' + key2 + ' xForce ' + xForce + ' yForce ' + yForce + ' valueX ' + value.x + ' value.y ' + value.y + ' value2X ' + value2.x + ' value2.y ' + value2.y )
+                            var yF = 0
+                            var l =  Math.sqrt((value2.x - value.x)
+                                *(value2.x - value.x)
+                                +((value2.y - value.y)
+                                    *(value2.y - value.y)))
+                            var F = (value.charge * value2.charge)/(l*l)*k
+                            xF = F * (value.x - value2.x) / l
+                            yF = F * (value.y - value2.y) / l
+
+                            if (Math.abs(xF) > 1)
+                                xForce = xForce + xF
+                            if (Math.abs(yF) > 1)
+                                yForce = yForce + yF
+                            // alert('xF ' + xF + ' yF ' + yF + ' xForce ' + xForce + ' yForce ' + yForce + '  Force ' + F)
+
+                        }
+                    }
+                    //  alert(xForce + ' ' + yForce)
+                    for (var i = 0; i < edges.length; i++) {
+                        if (edges[i].left == key){
+                            var l =  Math.sqrt((graph.get(edges[i].right).x - value.x)
+                                *(graph.get(edges[i].right).x - value.x)
+                                +((graph.get(edges[i].right).y - value.y)
+                                    *(graph.get(edges[i].right).y - value.y)))
+
+                            xForce = xForce + (edgeForce * (l/50) * (graph.get(edges[i].right).x - value.x)/l)
+                            yForce = yForce + (edgeForce * (l/50) * (graph.get(edges[i].right).y - value.y)/l)
+                        } else if (edges[i].right == key) {
+                            var l =  Math.sqrt((graph.get(edges[i].left).x - value.x)
+                                *(graph.get(edges[i].left).x - value.x)
+                                +((graph.get(edges[i].left).y - value.y)
+                                    *(graph.get(edges[i].left).y - value.y)))
+                            xForce = xForce + (edgeForce * (l/50) * (graph.get(edges[i].left).x - value.x)/l)
+                            yForce = yForce + (edgeForce * (l/50) * (graph.get(edges[i].left).y - value.y)/l)
+                        }
+                        ///  alert(key)
+                    }
+                    //alert('key ' + key + ' xForce ' + xForce + ' yForce ' + yForce + ' valueX ' + value.x + ' value.y ' + value.y)
+                    if (Math.abs(xForce) > maxForce)
+                        xForce = maxForce * Math.sign(xForce)
+                    if (Math.abs(yForce) > maxForce)
+                        yForce = maxForce * Math.sign(yForce)
+                    if (Math.abs(xForce) > 3)
+                        value.x = Math.round(value.x + xForce * timeInterval * timeInterval);
+                    if (Math.abs(yForce) > 3)
+                        value.y = Math.round(value.y + yForce * timeInterval * timeInterval);
+
+                }
+            }
+        }
+        function mainloop() {
+            calculate()
+            draw()
+            // body...
+        }
+        let mouse = {
+            x: 0,
+            y: 0,
+        };
+
+        canvas.addEventListener('mousedown', e => {
+            x = e.offsetX;
+            y = e.offsetY;
+
+            for (var [key,value] of graph){
+                if (x <= value.x + 10 && x >= value.x - 10 && y <= value.y + 10 && y >= value.y - 10) {
+                    movingPerson = value
+                    fixingPerson = value
+                    //    graph.get(movingPerson.id).x = x;
+                    //   graph.get(movingPerson.id).y = x;
+                    document.getElementById("fixname").textContent = fixingPerson.name
+                    document.getElementById("fixsurname").textContent = fixingPerson.surname
+                    document.getElementById("fixphoto").setAttribute("src", fixingPerson.photoSRC)
+                    document.getElementById("fixperson").style.visibility = 'visible'
+                    isFixing = true;
+                    isMoving = true;
+                    break
+                }
+
+            }
+        });
+        canvas.addEventListener('mousemove', e => {
+            x = e.offsetX;
+            y = e.offsetY;
+            if (isMoving == true) {
+                // drawLine(context, x, y, e.offsetX, e.offsetY);
+                graph.get(movingPerson.id).x = e.offsetX;
+                graph.get(movingPerson.id).y = e.offsetY;
+            }
+            for (var [key,value] of graph){
+                if (x <= value.x + 10 && x >= value.x - 10 && y <= value.y + 10 && y >= value.y - 10) {
+                    isPointing = true
+                    pointingPerson = value
+                    document.getElementById("person").style.visibility = 'visible'
+                    document.getElementById("name").textContent = value.name
+                    document.getElementById("surname").textContent = value.surname
+                    document.getElementById("photo").setAttribute("src", value.photoSRC)
+                    break;
+                }
+                document.getElementById("person").style.visibility='hidden'
+                isPointing = false
+            }
+
+
+        });
+
+        function loadNewData(id){
+            var xhr = new XMLHttpRequest();
+            document.location.href = "http://localhost:8080/0/cursach/adddata?id=" + id;
+        //    xhr.open('GET', 'http://localhost:8080/0/cursach/adddata?id=' + id);
+         //   xhr.send();
+
+          //  while (true) {
+          //      var s =  [[${a}]]
+              //  alert('status ' + xhr.status)
+          //      alert('s ' + s)
+         //   }
+
+        }
+        btn.addEventListener('mousedown',e => {
+            document.getElementById("fixperson").style.visibility = 'hidden'
+            isFixing = false
+
+        });
+        canvas.addEventListener('mouseup', e => {
+            if (isMoving == true) {
+                // drawLine(context, x, y, e.offsetX, e.offsetY);
+                //  x = 0;
+                //   y = 0;
+
+                isMoving = false;
+            }
+        });
+        canvas.addEventListener('dblclick',e =>{
+            x = e.offsetX;
+            y = e.offsetY;
+            for (var [key,value] of graph){
+                if (x <= value.x + 10 && x >= value.x - 10 && y <= value.y + 10 && y >= value.y - 10) {
+                    loadNewData(value.id)
+                    break
+                }
+            }
+        });
+        onload()
+        draw()
+        setInterval(mainloop,10)
+
+    </script>
+</head>
+<body>
+
+</body>
+</html>
