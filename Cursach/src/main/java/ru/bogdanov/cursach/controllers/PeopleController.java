@@ -2,7 +2,9 @@ package ru.bogdanov.cursach.controllers;
 
 import com.vk.api.sdk.exceptions.ApiException;
 import com.vk.api.sdk.exceptions.ClientException;
+import io.netty.handler.codec.http.HttpResponse;
 import org.apache.commons.io.IOUtils;
+import org.asynchttpclient.HttpResponseBodyPart;
 import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -17,6 +19,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Map;
@@ -45,48 +48,39 @@ public class PeopleController {
             graph.createEdges();
          // peopleDAO.init(req.getParameter("code"));
          //   peopleDAO.loadData();
-            ArrayList<Person> l = new ArrayList<>();
-            for (Map.Entry<Integer, Person> pers : graph.getList().entrySet()){
-                l.add(pers.getValue());
-            }
-            LinkedList<Pair> l2 = new LinkedList<>();
-            for (Pair p : graph.getEdges())
-                l2.add(p);
-            model.addAttribute("graphList",l);
-            model.addAttribute("graphEdges",l2);
-            model.addAttribute("rootId",graph.getRootId());
+
+            response(model,String.valueOf(graph.getRootId()));
             return "graphPage";
             }
     }
-   /* @GetMapping("/images")
-    public String img(){
-        return "test";
-    }
-    @GetMapping("img/close.png")
-    public byte[] testphoto() throws IOException {
-        InputStream in = getClass()
-                .getResourceAsStream("/close.png");
-        return IOUtils.toByteArray(in);
-    }*/
-    @GetMapping("/adddata")
-    public String newData(HttpServletRequest req,Model model) throws IOException, InterruptedException, ClientException, ApiException {
-          ArrayList<Person> l = new ArrayList<>();
-        String id = req.getParameter("id");
-        graph.appendData(id);
-        for (Map.Entry<Integer, Person> pers : graph.getAppendedList().entrySet()){
+
+    private void response(Model model, String id) {
+        ArrayList<Person> l = new ArrayList<>();
+        for (Map.Entry<Integer, Person> pers : graph.getList().entrySet()){
             l.add(pers.getValue());
         }
-        graph.appendEdges();
         LinkedList<Pair> l2 = new LinkedList<>();
-        for (Pair p : graph.getAppendedEdges())
+        for (Pair p : graph.getEdges())
             l2.add(p);
+        model.addAttribute("graphList",l);
+        model.addAttribute("graphEdges",l2);
+        model.addAttribute("rootId",graph.getRootId());
+        System.out.println(graph.getList().get(Integer.parseInt(id)).getX() + " '" + graph.getList().get(Integer.parseInt(id)).getY());
+        model.addAttribute("centerId",Integer.parseInt(id));
+    }
 
+    @GetMapping("/adddata")
+    public String newData(HttpServletRequest req, HttpServletResponse res, Model model) throws IOException, InterruptedException, ClientException, ApiException {
+        String id = req.getParameter("id");
+        System.out.println(graph.getList().get(Integer.parseInt(id)).getX() + " '" + graph.getList().get(Integer.parseInt(id)).getY());
+        graph.setCord(req.getParameter("list"));
+        System.out.println(graph.getList().get(Integer.parseInt(id)).getX() + " '" + graph.getList().get(Integer.parseInt(id)).getY());
+        graph.appendData(id);
+        graph.cutFriends();
+        graph.createEdges();
+        response(model, id);
+        return "graphPage";
 
-        model.addAttribute("appendedList",l);
-        model.addAttribute("appendedEdges",l2);
-      Integer s = 1;
-        model.addAttribute("a",1);
-        return "test";
     }
 
 }

@@ -144,4 +144,13 @@ public class Graph {
     public LinkedList<Pair> getAppendedEdges() {
         return appendedEdges;
     }
+
+    public void setCord(String list) {
+        String[] arr = list.split(";");
+        for (int i = 0 ;i < arr.length ; i++){
+            String[] item = arr[i].split(",");
+            this.list.get(Integer.parseInt(item[0])).setX(Integer.parseInt(item[1]));
+            this.list.get(Integer.parseInt(item[0])).setY(Integer.parseInt(item[2]));
+        }
+    }
 }

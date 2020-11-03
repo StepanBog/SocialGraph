@@ -52,6 +52,7 @@
 
         var graph;
         var rootId = [[${rootId}]]
+        var centerId = [[${centerId}]]
         var edgeForce = 8
         var timeInterval = 0.2
         var edges = [[${graphEdges}]];
@@ -68,16 +69,19 @@
         const ctx = canvas.getContext('2d');
         const fp = document.getElementById('fixperson')
         const btn = document.getElementById('close')
-        function Person(id,name,surname,gender,charge,friends,photoSRC) {
+        function Person(id,name,surname,gender,charge,friends,photoSRC,x,y) {
             this.id = id;
             this.name = name;
             this.surname = surname;
             this.gender = gender;
-            this.charge = charge;
+            if (charge > 100)
+                this.charge = 100
+            else
+                this.charge = charge;
             this.friend = [];
             this.friends = friends;
-            this.x = 0;
-            this.y = 0;
+            this.x = x;
+            this.y = y;
             this.photoSRC = photoSRC
 
         }
@@ -86,27 +90,30 @@
 
 
             graph = new Map();
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            canvas.width = window.innerWidth*2;
+            canvas.height = window.innerHeight*2;
             maxForce = canvas.height/20;
             //   resizeCanvas();
-            movingPerson = new Person(0,"","","",0,[],"")
+            movingPerson = new Person(0,"","","",0,[],"",0,0)
 
 
             for (i = 0; i < graphList.length; i++)
-                graph.set(graphList[i].id,new Person(graphList[i].id,graphList[i].name,graphList[i].surname,graphList[i].gender,graphList[i].friends.length,graphList[i].friends,graphList[i].photoSRC));
-            //   alert(graphList.length)
-            //  alert(graph.size)
-            //   alert(rootId)
-            //    alert(graph.get(rootId).friends.length)
-            graph.get(rootId).x = Math.round(canvas.width/2)
-            graph.get(rootId).y = Math.round(canvas.height/2)
+                graph.set(graphList[i].id,new Person(graphList[i].id,graphList[i].name,graphList[i].surname,graphList[i].gender,graphList[i].friends.length,graphList[i].friends,graphList[i].photoSRC,graphList[i].x,graphList[i].y));
+          //     alert(graphList.length)
+           //   alert(graph.size)
+             //  alert(rootId)
+                alert(graph.get(rootId).x + " " + graph.get(rootId).y)
+            alert(graph.get(centerId).x + " " + graph.get(centerId).y)
+            if ( graph.get(rootId).x === 0 &&  graph.get(rootId).y === 0) {
+                graph.get(rootId).x = Math.round(canvas.width / 2)
+                graph.get(rootId).y = Math.round(canvas.height / 2)
+            }
             var count = 0;
             for (var [key, value] of graph)
-                if (key != rootId) {
+                if (value.x === 0 &&  value.y === 0) {
                     //    alert(value.x)
-                    value.x =  Math.round(Number(graph.get(rootId).x) + 50 * Math.cos(count/(Number(graph.size) - 1) * 3.14 * 2))
-                    value.y =  Math.round(Number(graph.get(rootId).y) + 50 * Math.sin(count/(Number(graph.size) - 1) * 3.14 * 2))
+                    value.x =  Math.round(Number(graph.get(centerId).x) + 50 * Math.cos(count/(Number(graph.size) - 1) * 3.14 * 2))
+                    value.y =  Math.round(Number(graph.get(centerId).y) + 50 * Math.sin(count/(Number(graph.size) - 1) * 3.14 * 2))
                     //  alert(50 * Math.cos(count*Number(graph.size) * 3.14))
                     //   alert(value.x + ' ' + value.y)
                     //  alert( graph.get(rootId).x + ' ' + graph.get(rootId).y)
@@ -263,19 +270,14 @@
 
 
         });
+        var xhr = new XMLHttpRequest();
+        function loadNewData(id) {
 
-        function loadNewData(id){
-            var xhr = new XMLHttpRequest();
-            document.location.href = "http://localhost:8080/0/cursach/adddata?id=" + id;
-        //    xhr.open('GET', 'http://localhost:8080/0/cursach/adddata?id=' + id);
-         //   xhr.send();
-
-          //  while (true) {
-          //      var s =  [[${a}]]
-              //  alert('status ' + xhr.status)
-          //      alert('s ' + s)
-         //   }
-
+            var str = "";
+            for (var [key, value] of graph) {
+                str = str + value.id + "," + value.x + "," + value.y + ";"
+            }
+            document.location.href = "http://localhost:8080/0/cursach/adddata?id=" + id + "&list=" + str;
         }
         btn.addEventListener('mousedown',e => {
             document.getElementById("fixperson").style.visibility = 'hidden'
